@@ -216,3 +216,51 @@ window.addEventListener('offline', isOnline );
 
 isOnline();
 
+// 🟢 PEGAR AL FINAL DEL ARCHIVO app.js:
+
+// Función para enviar mensajes desde la consola (Actividad 3)
+function enviarNuevoMensaje(user, mensaje) {
+  const payload = {
+    user: user,
+    mensaje: mensaje
+  };
+
+  return fetch('/api', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(payload)
+  })
+  .then(res => res.json())
+  .then(res => {
+    if (res.ok) {
+      console.log('Mensaje creado exitosamente:', res.mensaje);
+      crearMensajeHTML(res.mensaje.mensaje, res.mensaje.user);
+    } else {
+      mostrarErrorToast(res.mensaje || 'Error al enviar mensaje');
+    }
+  })
+  .catch(err => {
+    console.error('Error en la petición:', err);
+    mostrarErrorToast('Error de conexión o almacenamiento.');
+  });
+}
+
+// Función auxiliar para mostrar alertas de error (Actividad 5)
+function mostrarErrorToast(mensajeError) {
+  if (typeof $.toast === 'function') {
+    $.toast({
+      heading: 'Error de Sincronización',
+      text: mensajeError,
+      showHideTransition: 'fade',
+      icon: 'error',
+      position: 'top-right',
+      loader: true,
+      loaderBg: '#ff4d4d'
+    });
+  } else {
+    console.error('JQuery Toast:', mensajeError);
+  }
+}
+
