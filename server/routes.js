@@ -13,6 +13,7 @@ const mensajes = [
 
 ];
 
+let idContador = mensajes.length;
 
 // Get mensajes
 router.get('/', function (req, res) {
@@ -22,24 +23,51 @@ router.get('/', function (req, res) {
 
 
 // Post mensaje
-router.post('/', function (req, res) {
-  
-  const mensaje = {
-    mensaje: req.body.mensaje,
-    user: req.body.user
+router.post('/', function(req, res) {
+  const { user, mensaje } = req.body;
+
+  if (!user || !mensaje || user.trim() === '' || mensaje.trim() === '') {
+    return res.status(400).json({
+      ok: false,
+      mensaje: 'El usuario y el mensaje son obligatorios.'
+    });
+  }
+
+  idContador++;
+
+  const nuevoMensaje = {
+    _id: idContador,
+    user: user.trim(),
+    mensaje: mensaje.trim()
   };
 
-  mensajes.push( mensaje );
-
-  console.log(mensajes);
-
+  mensajes.push(nuevoMensaje);
 
   res.json({
     ok: true,
-    mensaje
+    mensaje: nuevoMensaje
   });
 });
 
 
+router.delete('/:id', function(req, res) {
+  const id = req.params.id;
+  const index = mensajes.findIndex(m => m._id == id);
+
+  if (index === -1) {
+    return res.status(404).json({
+      ok: false,
+      mensaje: `No se encontró el mensaje con ID: ${id}`
+    });
+  }
+
+  const eliminado = mensajes.splice(index, 1)[0];
+
+  res.json({
+    ok: true,
+    mensaje: 'Mensaje eliminado exitosamente',
+    eliminado: eliminado
+  });
+});
 
 module.exports = router;
