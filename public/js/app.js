@@ -216,7 +216,6 @@ window.addEventListener('offline', isOnline );
 
 isOnline();
 
-// 🟢 PEGAR AL FINAL DEL ARCHIVO app.js:
 
 // Función para enviar mensajes desde la consola (Actividad 3)
 function enviarNuevoMensaje(user, mensaje) {
