@@ -168,19 +168,15 @@ postBtn.on('click', function() {
 
 // Obtener mensajes del servidor
 function getMensajes() {
-
-    fetch('api')
-        .then( res => res.json() )
-        .then( posts => {
-
-            console.log(posts);
-            posts.forEach( post =>
-                crearMensajeHTML( post.mensaje, post.user ));
-
-
-        });
-
-
+  fetch('/api')
+    .then(res => res.json())
+    .then(posts => {
+      posts.forEach(post => crearMensajeHTML(post.mensaje, post.user));
+    })
+    .catch(err => {
+      console.log('Error al obtener mensajes:', err);
+      mostrarErrorToast('No se pudieron obtener los mensajes más recientes.');
+    });
 }
 
 getMensajes();
