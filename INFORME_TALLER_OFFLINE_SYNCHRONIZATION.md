@@ -4,8 +4,8 @@
 
 La aplicación implementa un flujo completo de sincronización offline:
 
-1. El servidor Express persiste los mensajes en MongoDB mediante Mongoose.
-2. El navegador conserva los mensajes pendientes en PouchDB, usando IndexedDB.
+1. El servidor Express persiste los mensajes en la colección MongoDB `mensajes` mediante Mongoose.
+2. El navegador conserva los mensajes pendientes en el ObjectStore PouchDB `mensajes-offline`, usando IndexedDB.
 3. El Service Worker intercepta los POST, activa Background Sync y reintenta el envío al recuperar la conexión.
 4. Los mensajes confirmados se guardan en el almacén local `mensajes` y se actualiza el caché dinámico de `GET /api`.
 5. La interfaz informa cada estado mediante Toasts.
@@ -46,16 +46,18 @@ Para probar la API se puede utilizar Postman. Para probar el modo offline se nec
 
 **Commit:** `9e1b12f`.
 
-**Archivo y código:** `server/routes.js` define el esquema Mongoose `Mensaje`:
+**Archivo y código:** `server/routes.js` define el esquema Mongoose `Mensaje` y lo guarda explícitamente en la colección `mensajes`:
 
 ```js
 const mensajeSchema = new mongoose.Schema({
 	user: { type: String, required: true, trim: true },
 	mensaje: { type: String, required: true, trim: true }
 });
+
+const Mensaje = mongoose.model('Mensaje', mensajeSchema, 'mensajes');
 ```
 
-MongoDB genera `_id` automáticamente. La colección contiene `_id`, `user`, `mensaje` y los campos de fecha configurados por `timestamps`.
+Cada registro de la colección `mensajes` es un documento independiente con `_id`, `user` y `mensaje`; MongoDB genera `_id` automáticamente. También se guardan los campos de fecha configurados por `timestamps`. No se crea un documento único que contenga todos los mensajes.
 
 **Cómo evidenciarlo:**
 
@@ -69,14 +71,14 @@ MongoDB genera `_id` automáticamente. La colección contiene `_id`, `user`, `me
 
 **Commit:** `a82f0ee`.
 
-**Archivo y código:** `public/js/sw-db.js` crea:
+**Archivo y código:** `public/js/sw-db.js` crea los dos almacenes locales:
 
 ```js
 const dbOffline = new PouchDB('mensajes-offline');
 const dbMensajes = new PouchDB('mensajes');
 ```
 
-PouchDB utiliza IndexedDB en el navegador. `guardarMensajeOffline` crea el documento con `_id`, `user` y `mensaje`, y lo guarda en `mensajes-offline`. `guardarMensajesLocales` actualiza la copia confirmada en `mensajes`.
+PouchDB utiliza IndexedDB en el navegador. `mensajes-offline` es el ObjectStore de pendientes solicitado; `guardarMensajeOffline` crea cada documento con `_id`, `user` y `mensaje`. El almacén `mensajes` contiene la copia confirmada que coincide con la colección principal.
 
 **Cómo evidenciarlo:** abrir DevTools > Application > IndexedDB y mostrar las bases `mensajes-offline` y `mensajes`. Antes de sincronizar, un mensaje pendiente debe estar únicamente en `mensajes-offline`.
 
@@ -148,10 +150,48 @@ function manejoApiMensajes(cacheName, req) {
 
 **Archivos y código:**
 
-- `public/js/app.js`, función `isOnline`: registra `nuevo-post` cuando `navigator.onLine` vuelve a ser verdadero.
+- `public/js/app.js`, función `isOnline`: comprueba `navigator.onLine` y solicita al Service Worker contar los pendientes antes de programar Background Sync.
 - `public/js/sw-db.js`, función `postearMensajes`: lee `mensajes-offline`, ejecuta POST por cada documento y guarda la respuesta en `mensajes`.
 - `public/sw.js`, evento `sync`: ejecuta `postearMensajes`.
 - `public/js/sw-db.js`: elimina el pendiente únicamente después de recibir una respuesta exitosa con `ok: true`.
+
+```js
+function isOnline() {
+	if (navigator.onLine) {
+		sincronizarMensajesPendientes();
+	} else {
+		mostrarToast('Sin conexión. Los mensajes quedarán pendientes.', 'warning');
+	}
+}
+
+function sincronizarMensajesPendientes() {
+	return navigator.serviceWorker.ready.then(registration => {
+		if (registration.active) {
+			registration.active.postMessage({ type: 'comprobar-pendientes' });
+		}
+	});
+}
+```
+
+El Service Worker solo registra `nuevo-post` cuando `mensajes-offline` contiene documentos:
+
+```js
+self.addEventListener('message', event => {
+	if (!event.data || event.data.type !== 'comprobar-pendientes') return;
+
+	event.waitUntil(listarMensajesOffline().then(docs => {
+		const count = docs.rows.length;
+		const sincronizacion = count && self.registration.sync
+			? self.registration.sync.register('nuevo-post')
+			: Promise.resolve();
+
+		return sincronizacion.then(() => event.source.postMessage({
+			type: 'pendientes-comprobados',
+			count: count
+		}));
+	}));
+});
+```
 
 ```js
 function postearMensajes() {
@@ -252,7 +292,7 @@ function getMensajes() {
 
 **Archivos y código:** `public/js/app.js` centraliza las notificaciones en `mostrarToast`, usando `$.mdtoast`. Se muestran mensajes para:
 
-- Conexión restaurada y sincronización iniciada.
+- Conexión restaurada y sincronización iniciada cuando existen pendientes.
 - Modo offline y mensaje guardado como pendiente.
 - Mensaje guardado en MongoDB.
 - Sincronización terminada.
@@ -273,6 +313,10 @@ function mostrarToast(mensaje, tipo) {
 }
 
 navigator.serviceWorker.addEventListener('message', event => {
+	if (event.data && event.data.type === 'pendientes-comprobados' && event.data.count > 0) {
+		mostrarToast('Conexión restaurada. Sincronizando mensajes.', 'success');
+	}
+
 	if (event.data && event.data.type === 'mensajes-sincronizados') {
 		getMensajes();
 		mostrarToast(

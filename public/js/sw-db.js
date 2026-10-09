@@ -10,7 +10,10 @@ function guardarMensajeOffline(mensaje) {
     };
 
     return dbOffline.put(documento).then(() => {
-        self.registration.sync.register('nuevo-post');
+        if (self.registration.sync) {
+            return self.registration.sync.register('nuevo-post');
+        }
+    }).then(() => {
 
         return new Response(JSON.stringify({
             ok: true,
@@ -97,4 +100,28 @@ function postearMensajes() {
         return Promise.all(posteos);
     });
 }
+
+self.addEventListener('message', event => {
+    if (!event.data || event.data.type !== 'comprobar-pendientes') {
+        return;
+    }
+
+    event.waitUntil(
+        listarMensajesOffline().then(docs => {
+            const count = docs.rows.length;
+            const sincronizacion = count && self.registration.sync
+                ? self.registration.sync.register('nuevo-post')
+                : Promise.resolve();
+
+            return sincronizacion.then(() => {
+                if (event.source) {
+                    event.source.postMessage({
+                        type: 'pendientes-comprobados',
+                        count: count
+                    });
+                }
+            });
+        })
+    );
+});
 

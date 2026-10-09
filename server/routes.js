@@ -16,7 +16,7 @@ const mensajeSchema = new mongoose.Schema({
   }
 }, { timestamps: true });
 
-const Mensaje = mongoose.model('Mensaje', mensajeSchema);
+const Mensaje = mongoose.model('Mensaje', mensajeSchema, 'mensajes');
 
 // Get mensajes
 router.get('/', async function (req, res) {

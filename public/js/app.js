@@ -147,7 +147,7 @@ postBtn.on('click', function() {
     };
 
 
-    fetch('api', {
+    fetch('/api', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'
@@ -162,13 +162,10 @@ postBtn.on('click', function() {
         mostrarToast('Mensaje guardado para sincronizar.', 'warning');
       } else {
         mostrarToast('Mensaje guardado.', 'success');
+        crearMensajeHTML(mensaje, usuario);
       }
     })
-    .catch(err => mostrarErrorToast(err.message));
-
-
-
-    crearMensajeHTML( mensaje, usuario );
+    .catch(err => mostrarErrorToast(`Error de conexión: ${err.message}`));
 
 });
 
@@ -197,9 +194,6 @@ function isOnline() {
 
     if ( navigator.onLine ) {
       sincronizarMensajesPendientes();
-      mostrarToast('Conexión restaurada. Sincronizando mensajes.', 'success');
-
-
     } else{
         mostrarToast('Sin conexión. Los mensajes quedarán pendientes.', 'warning');
     }
@@ -212,6 +206,11 @@ function isOnline() {
           getMensajes();
           mostrarToast(`${event.data.count} mensaje(s) sincronizado(s).`, 'success');
         }
+        if (event.data && event.data.type === 'pendientes-comprobados') {
+          if (event.data.count > 0) {
+            mostrarToast('Conexión restaurada. Sincronizando mensajes.', 'success');
+          }
+        }
       });
     }
 
@@ -221,8 +220,8 @@ function sincronizarMensajesPendientes() {
   }
 
   navigator.serviceWorker.ready.then(registration => {
-    if (registration.sync) {
-      return registration.sync.register('nuevo-post');
+    if (registration.active) {
+      registration.active.postMessage({ type: 'comprobar-pendientes' });
     }
   }).catch(error => {
     mostrarErrorToast(`No se pudo programar la sincronización: ${error.message}`);
