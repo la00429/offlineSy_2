@@ -26,7 +26,7 @@ MongoDB se configura mediante `MONGODB_URI`, con valor local por defecto `mongod
 
 ## 2. ObjectStore para mensajes offline
 
-**Implementación:** `public/js/sw-db.js` crea los almacenes PouchDB `mensajes-offline` y `mensajes`. PouchDB usa IndexedDB como almacenamiento del navegador.
+**Implementación:** commit `a82f0ee`. `public/js/sw-db.js` crea los almacenes PouchDB `mensajes-offline` y `mensajes`. PouchDB usa IndexedDB como almacenamiento del navegador.
 
 El primer almacén conserva mensajes pendientes con `_id`, `user` y `mensaje`; el segundo conserva la copia local confirmada por el servidor.
 
@@ -34,7 +34,7 @@ El primer almacén conserva mensajes pendientes con `_id`, `user` y `mensaje`; e
 
 ## 3. POST y almacenamiento de mensajes pendientes
 
-**Implementación:** el `POST /api` guarda el documento en MongoDB y responde HTTP 200 con `ok: true`. Los errores de base de datos responden HTTP 503 con `tipoError: "base-de-datos"`.
+**Implementación:** commit `63470bd`. El `POST /api` guarda el documento en MongoDB y responde HTTP 200 con `ok: true`. Los errores de base de datos responden HTTP 503 con `tipoError: "base-de-datos"`.
 
 El Service Worker intenta primero la petición de red. Si falla la conexión o el servidor responde con un error 5xx, guarda el JSON en `mensajes-offline` y devuelve `ok: true, offline: true`. Los errores 4xx se conservan para que el cliente pueda mostrarlos.
 
@@ -42,7 +42,7 @@ El Service Worker intenta primero la petición de red. Si falla la conexión o e
 
 ## 4. Sincronización al recuperar conexión
 
-**Implementación:** `isOnline` registra `nuevo-post` al recuperar conexión. El evento `sync` del Service Worker ejecuta `postearMensajes`, que envía los pendientes, guarda la respuesta del servidor en `mensajes` y elimina cada documento de `mensajes-offline` solo después de una respuesta exitosa.
+**Implementación:** commit `2f1e576`. `isOnline` registra `nuevo-post` al recuperar conexión. El evento `sync` del Service Worker ejecuta `postearMensajes`, que envía los pendientes, guarda la respuesta del servidor en `mensajes` y elimina cada documento de `mensajes-offline` solo después de una respuesta exitosa.
 
 Si una petición falla, el documento pendiente no se elimina y Background Sync puede reintentarlo.
 
@@ -50,19 +50,19 @@ Si una petición falla, el documento pendiente no se elimina y Background Sync p
 
 ## 5. Actualización del caché dinámico
 
-**Implementación:** después de enviar los pendientes, el Service Worker consulta nuevamente `GET /api` y reemplaza la entrada `/api` del caché dinámico. `getMensajes` limpia el timeline antes de renderizar la respuesta, evitando duplicados si la vista se actualiza.
+**Implementación:** commit `bbaeb63`. Después de enviar los pendientes, el Service Worker consulta nuevamente `GET /api` y reemplaza la entrada `/api` del caché dinámico. `getMensajes` limpia el timeline antes de renderizar la respuesta, evitando duplicados si la vista se actualiza.
 
 **Validación:** sincronizar un mensaje offline, recargar la página y consultar Application > Cache Storage > `dynamic-v1`. La respuesta de `/api` debe contener cada mensaje una sola vez y coincidir con MongoDB.
 
 ## 6. Notificaciones Toast
 
-**Implementación:** se usa `$.mdtoast` para notificar conexión restaurada, modo offline, mensaje guardado, mensaje pendiente, sincronización completada y errores de red o base de datos. El Service Worker informa al cliente cuántos mensajes fueron sincronizados.
+**Implementación:** commit `827ddef`. Se usa `$.mdtoast` para notificar conexión restaurada, modo offline, mensaje guardado, mensaje pendiente, sincronización completada y errores de red o base de datos. El Service Worker informa al cliente cuántos mensajes fueron sincronizados.
 
 **Validación:** activar y desactivar la red desde DevTools > Network y crear mensajes. Deben aparecer Toasts diferentes para offline, guardado pendiente, conexión restaurada, sincronización exitosa y errores.
 
 ## 7. GET desde la base de datos y actualización local
 
-**Implementación:** `GET /api` consulta MongoDB mediante `Mensaje.find()`. Cuando el Service Worker recibe una respuesta correcta, guarda todos los documentos en el almacén local `mensajes` y actualiza el caché dinámico. Si no existe respuesta de red ni caché, devuelve la copia de `mensajes`.
+**Implementación:** commit `909d7bd`. `GET /api` consulta MongoDB mediante `Mensaje.find()`. Cuando el Service Worker recibe una respuesta correcta, guarda todos los documentos en el almacén local `mensajes` y actualiza el caché dinámico. Si no existe respuesta de red ni caché, devuelve la copia de `mensajes`.
 
 **Validación:** crear varios mensajes, consultar `GET /api` y revisar IndexedDB > `mensajes`. Desconectar la red, recargar la aplicación y confirmar que la lista se obtiene de la copia local sin duplicados.
 
