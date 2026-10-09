@@ -46,12 +46,16 @@ router.post('/', async function(req, res) {
       mensaje: mensaje.trim()
     });
 
-    res.status(201).json({
+    res.status(200).json({
       ok: true,
       mensaje: nuevoMensaje
     });
   } catch (error) {
-    res.status(500).json({ ok: false, mensaje: 'No se pudo guardar el mensaje.' });
+    res.status(503).json({
+      ok: false,
+      tipoError: 'base-de-datos',
+      mensaje: 'No se pudo guardar el mensaje en la base de datos.'
+    });
   }
 });
 

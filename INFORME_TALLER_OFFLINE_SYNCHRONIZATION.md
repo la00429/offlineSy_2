@@ -34,7 +34,11 @@ El primer almacén conserva mensajes pendientes con `_id`, `user` y `mensaje`; e
 
 ## 3. POST y almacenamiento de mensajes pendientes
 
-Pendiente de implementación.
+**Implementación:** el `POST /api` guarda el documento en MongoDB y responde HTTP 200 con `ok: true`. Los errores de base de datos responden HTTP 503 con `tipoError: "base-de-datos"`.
+
+El Service Worker intenta primero la petición de red. Si falla la conexión o el servidor responde con un error 5xx, guarda el JSON en `mensajes-offline` y devuelve `ok: true, offline: true`. Los errores 4xx se conservan para que el cliente pueda mostrarlos.
+
+**Validación:** con MongoDB activo, enviar un POST y comprobar HTTP 200. Después detener MongoDB o usar DevTools > Network > Offline, enviar otro mensaje y comprobar que aparece en `mensajes-offline`.
 
 ## 4. Sincronización al recuperar conexión
 

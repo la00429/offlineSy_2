@@ -45,19 +45,21 @@ function manejoApiMensajes( cacheName, req ) {
 
 
     if ( req.clone().method === 'POST' ) {
-        // POSTEO de un nuevo mensaje
+        return req.clone().text().then(body => {
+            const bodyObj = JSON.parse(body);
 
-        if ( self.registration.sync ) {
-            return req.clone().text().then( body =>{
-    
-                // console.log(body);
-                const bodyObj = JSON.parse( body );
-                return guardarMensaje( bodyObj );
-    
-            });
-        } else {
-            return fetch( req );
-        }
+            return fetch(req.clone()).then(res => {
+                if (res.ok) {
+                    return res;
+                }
+
+                if (res.status >= 500) {
+                    return guardarMensajeOffline(bodyObj);
+                }
+
+                return res;
+            }).catch(() => guardarMensajeOffline(bodyObj));
+        });
 
 
     } else {
