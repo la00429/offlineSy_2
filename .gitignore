@@ -1,4 +1,45 @@
 
 
-#Ignore vscode AI rules
-.github\instructions\codacy.instructions.md
+# Dependencies
+node_modules/
+
+# Environment and local configuration
+.env
+.env.*
+!.env.example
+
+# Logs and runtime files
+*.log
+logs/
+pids/
+*.pid
+*.pid.lock
+
+# Test and coverage output
+coverage/
+.nyc_output/
+
+# Build and temporary output
+dist/
+build/
+tmp/
+temp/
+
+# Package-manager caches
+.npm/
+.yarn/
+.pnpm-store/
+
+# Operating-system files
+.DS_Store
+Thumbs.db
+
+# Editor files
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+# Codacy AI rules
+.github/instructions/codacy.instructions.md
