@@ -9,6 +9,7 @@ function guardarMensajeOffline(mensaje) {
         mensaje: mensaje.mensaje
     };
 
+    
     return dbOffline.put(documento).then(() => {
         if (self.registration.sync) {
             return self.registration.sync.register('nuevo-post');
