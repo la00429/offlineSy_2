@@ -26,7 +26,11 @@ MongoDB se configura mediante `MONGODB_URI`, con valor local por defecto `mongod
 
 ## 2. ObjectStore para mensajes offline
 
-Pendiente de implementación.
+**Implementación:** `public/js/sw-db.js` crea los almacenes PouchDB `mensajes-offline` y `mensajes`. PouchDB usa IndexedDB como almacenamiento del navegador.
+
+El primer almacén conserva mensajes pendientes con `_id`, `user` y `mensaje`; el segundo conserva la copia local confirmada por el servidor.
+
+**Validación:** abrir DevTools > Application > IndexedDB, crear un mensaje sin conexión y confirmar que aparece en `mensajes-offline`. La base `mensajes` se usará para la copia sincronizada.
 
 ## 3. POST y almacenamiento de mensajes pendientes
 
