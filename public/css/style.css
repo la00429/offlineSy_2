@@ -97,6 +97,14 @@
   z-index: 9999;
 }
 
+.control-button {
+  cursor: pointer;
+  font-size: .75em;
+  font-weight: bold;
+  padding: .35em .6em;
+  text-shadow: none;
+}
+
 textarea {
   -webkit-box-sizing: border-box;
   -moz-box-sizing: border-box;
@@ -124,6 +132,9 @@ textarea {
   color: white;
   text-align: center;
   line-height: 70px;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: bold;
 
   position: fixed;
   right: 20px;
@@ -141,7 +152,10 @@ textarea {
   font-size: 20px;
   color: white;
   text-align: center;
-  line-height: 55px;
+  line-height: 50px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: bold;
 
   position: fixed;
   left: 20px;
@@ -159,7 +173,10 @@ textarea {
   font-size: 20px;
   color: white;
   text-align: center;
-  line-height: 55px;
+  line-height: 50px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: bold;
 
   position: fixed;
   left: 80px;
