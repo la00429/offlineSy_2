@@ -43,8 +43,13 @@ self.addEventListener('install', e => {
     const cacheStatic = caches.open( STATIC_CACHE ).then(cache => 
         cache.addAll( APP_SHELL ));
 
-    const cacheInmutable = caches.open( INMUTABLE_CACHE ).then(cache => 
-        cache.addAll( APP_SHELL_INMUTABLE ));
+    const cacheInmutable = caches.open(INMUTABLE_CACHE).then(cache =>
+        Promise.all(APP_SHELL_INMUTABLE.map(url =>
+            cache.add(url).catch(error => {
+                console.warn('No se pudo cachear el recurso externo:', url, error);
+            })
+        ))
+    );
 
 
 
