@@ -187,8 +187,7 @@ getMensajes();
 function isOnline() {
 
     if ( navigator.onLine ) {
-        // tenemos conexión
-        // console.log('online');
+    sincronizarMensajesPendientes();
         $.mdtoast('Online', {
             interaction: true,
             interactionTimeout: 1000,
@@ -205,6 +204,20 @@ function isOnline() {
         });
     }
 
+}
+
+function sincronizarMensajesPendientes() {
+  if (!navigator.serviceWorker) {
+    return;
+  }
+
+  navigator.serviceWorker.ready.then(registration => {
+    if (registration.sync) {
+      return registration.sync.register('nuevo-post');
+    }
+  }).catch(error => {
+    mostrarErrorToast(`No se pudo programar la sincronización: ${error.message}`);
+  });
 }
 
 window.addEventListener('online', isOnline );

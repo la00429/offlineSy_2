@@ -54,3 +54,36 @@ function listarMensajesLocales() {
     return dbMensajes.allDocs({ include_docs: true });
 }
 
+function postearMensajes() {
+    return listarMensajesOffline().then(docs => {
+        const posteos = docs.rows.map(row => {
+            const documento = row.doc;
+            const payload = {
+                user: documento.user,
+                mensaje: documento.mensaje
+            };
+
+            return fetch('api', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            }).then(respuesta => respuesta.json().then(respuestaJson => ({
+                respuesta,
+                respuestaJson
+            }))).then(({ respuesta, respuestaJson }) => {
+                if (!respuesta.ok || !respuestaJson.ok) {
+                    throw new Error(respuestaJson.mensaje || 'No se pudo sincronizar el mensaje.');
+                }
+
+                return dbMensajes.put({
+                    ...respuestaJson.mensaje,
+                    _id: String(respuestaJson.mensaje._id)
+                }).then(() => eliminarMensajeOffline(documento))
+                    .then(() => respuestaJson.mensaje);
+            });
+        });
+
+        return Promise.all(posteos);
+    });
+}
+

@@ -42,7 +42,11 @@ El Service Worker intenta primero la petición de red. Si falla la conexión o e
 
 ## 4. Sincronización al recuperar conexión
 
-Pendiente de implementación.
+**Implementación:** `isOnline` registra `nuevo-post` al recuperar conexión. El evento `sync` del Service Worker ejecuta `postearMensajes`, que envía los pendientes, guarda la respuesta del servidor en `mensajes` y elimina cada documento de `mensajes-offline` solo después de una respuesta exitosa.
+
+Si una petición falla, el documento pendiente no se elimina y Background Sync puede reintentarlo.
+
+**Validación:** crear mensajes con la aplicación offline, comprobar `mensajes-offline`, volver a conectar la red y observar el evento `sync`. Confirmar que los documentos pasan a `mensajes`, aparecen en MongoDB y desaparecen de `mensajes-offline`.
 
 ## 5. Actualización del caché dinámico
 
