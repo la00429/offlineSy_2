@@ -154,9 +154,17 @@ postBtn.on('click', function() {
         },
         body: JSON.stringify( data )
     })
-    .then( res => res.json() )
-    .then( res => console.log( 'app.js', res ))
-    .catch( err => console.log( 'app.js error:', err ));
+    .then(res => res.json().then(data => ({ ok: res.ok, data })))
+    .then(({ ok, data }) => {
+      if (!ok || !data.ok) {
+        mostrarErrorToast(data.mensaje || 'No se pudo enviar el mensaje.');
+      } else if (data.offline) {
+        mostrarToast('Mensaje guardado para sincronizar.', 'warning');
+      } else {
+        mostrarToast('Mensaje guardado.', 'success');
+      }
+    })
+    .catch(err => mostrarErrorToast(err.message));
 
 
 
@@ -188,24 +196,24 @@ getMensajes();
 function isOnline() {
 
     if ( navigator.onLine ) {
-    sincronizarMensajesPendientes();
-        $.mdtoast('Online', {
-            interaction: true,
-            interactionTimeout: 1000,
-            actionText: 'OK!'
-        });
+      sincronizarMensajesPendientes();
+      mostrarToast('Conexión restaurada. Sincronizando mensajes.', 'success');
 
 
     } else{
-        // No tenemos conexión
-        $.mdtoast('Offline', {
-            interaction: true,
-            actionText: 'OK',
-            type: 'warning'
-        });
+        mostrarToast('Sin conexión. Los mensajes quedarán pendientes.', 'warning');
     }
 
 }
+
+    if (navigator.serviceWorker) {
+      navigator.serviceWorker.addEventListener('message', event => {
+        if (event.data && event.data.type === 'mensajes-sincronizados') {
+          getMensajes();
+          mostrarToast(`${event.data.count} mensaje(s) sincronizado(s).`, 'success');
+        }
+      });
+    }
 
 function sincronizarMensajesPendientes() {
   if (!navigator.serviceWorker) {
@@ -258,18 +266,19 @@ function enviarNuevoMensaje(user, mensaje) {
 
 // Función auxiliar para mostrar alertas de error (Actividad 5)
 function mostrarErrorToast(mensajeError) {
-  if (typeof $.toast === 'function') {
-    $.toast({
-      heading: 'Error de Sincronización',
-      text: mensajeError,
-      showHideTransition: 'fade',
-      icon: 'error',
-      position: 'top-right',
-      loader: true,
-      loaderBg: '#ff4d4d'
+  mostrarToast(mensajeError, 'error');
+}
+
+function mostrarToast(mensaje, tipo) {
+  if (typeof $.mdtoast === 'function') {
+    $.mdtoast(mensaje, {
+      interaction: true,
+      interactionTimeout: 2500,
+      actionText: 'OK',
+      type: tipo
     });
   } else {
-    console.error('JQuery Toast:', mensajeError);
+    console.error('Toast:', mensaje);
   }
 }
 

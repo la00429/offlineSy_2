@@ -56,7 +56,9 @@ Si una petición falla, el documento pendiente no se elimina y Background Sync p
 
 ## 6. Notificaciones Toast
 
-Pendiente de implementación.
+**Implementación:** se usa `$.mdtoast` para notificar conexión restaurada, modo offline, mensaje guardado, mensaje pendiente, sincronización completada y errores de red o base de datos. El Service Worker informa al cliente cuántos mensajes fueron sincronizados.
+
+**Validación:** activar y desactivar la red desde DevTools > Network y crear mensajes. Deben aparecer Toasts diferentes para offline, guardado pendiente, conexión restaurada, sincronización exitosa y errores.
 
 ## 7. GET desde la base de datos y actualización local
 

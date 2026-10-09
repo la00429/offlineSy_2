@@ -126,7 +126,14 @@ self.addEventListener('sync', e => {
         // postear a BD cuando hay conexión
         const respuesta = postearMensajes()
             .then(mensajes => actualizarCacheMensajes(DYNAMIC_CACHE)
-                .then(() => ({ mensajes })));
+                .then(() => self.clients.matchAll({ type: 'window', includeUncontrolled: true }))
+                .then(clientes => {
+                    clientes.forEach(cliente => cliente.postMessage({
+                        type: 'mensajes-sincronizados',
+                        count: mensajes.length
+                    }));
+                    return { mensajes };
+                }));
         
         e.waitUntil( respuesta );
     }
