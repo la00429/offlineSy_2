@@ -1,29 +1,36 @@
 // Routes.js - Módulo de rutas
 var express = require('express');
 var router = express.Router();
+const mongoose = require('mongoose');
 
-
-const mensajes = [
-
-  {
-    _id: 'XXX',
-    user: 'spiderman',
-    mensaje: 'Hola Mundo'
+const mensajeSchema = new mongoose.Schema({
+  user: {
+    type: String,
+    required: true,
+    trim: true
+  },
+  mensaje: {
+    type: String,
+    required: true,
+    trim: true
   }
+}, { timestamps: true });
 
-];
-
-let idContador = mensajes.length;
+const Mensaje = mongoose.model('Mensaje', mensajeSchema);
 
 // Get mensajes
-router.get('/', function (req, res) {
-  // res.json('Obteniendo mensajes');
-  res.json( mensajes );
+router.get('/', async function (req, res) {
+  try {
+    const mensajes = await Mensaje.find().sort({ createdAt: 1 }).lean();
+    res.json(mensajes);
+  } catch (error) {
+    res.status(500).json({ ok: false, mensaje: 'No se pudieron obtener los mensajes.' });
+  }
 });
 
 
 // Post mensaje
-router.post('/', function(req, res) {
+router.post('/', async function(req, res) {
   const { user, mensaje } = req.body;
 
   if (!user || !mensaje || user.trim() === '' || mensaje.trim() === '') {
@@ -33,41 +40,50 @@ router.post('/', function(req, res) {
     });
   }
 
-  idContador++;
+  try {
+    const nuevoMensaje = await Mensaje.create({
+      user: user.trim(),
+      mensaje: mensaje.trim()
+    });
 
-  const nuevoMensaje = {
-    _id: idContador,
-    user: user.trim(),
-    mensaje: mensaje.trim()
-  };
-
-  mensajes.push(nuevoMensaje);
-
-  res.json({
-    ok: true,
-    mensaje: nuevoMensaje
-  });
+    res.status(201).json({
+      ok: true,
+      mensaje: nuevoMensaje
+    });
+  } catch (error) {
+    res.status(500).json({ ok: false, mensaje: 'No se pudo guardar el mensaje.' });
+  }
 });
 
 
-router.delete('/:id', function(req, res) {
+router.delete('/:id', async function(req, res) {
   const id = req.params.id;
-  const index = mensajes.findIndex(m => m._id == id);
 
-  if (index === -1) {
+  if (!mongoose.isValidObjectId(id)) {
+    return res.status(400).json({
+      ok: false,
+      mensaje: `El ID no es válido: ${id}`
+    });
+  }
+
+  try {
+    const eliminado = await Mensaje.findByIdAndDelete(id);
+
+    if (!eliminado) {
     return res.status(404).json({
       ok: false,
       mensaje: `No se encontró el mensaje con ID: ${id}`
     });
   }
 
-  const eliminado = mensajes.splice(index, 1)[0];
-
-  res.json({
-    ok: true,
-    mensaje: 'Mensaje eliminado exitosamente',
-    eliminado: eliminado
-  });
+    res.json({
+      ok: true,
+      mensaje: 'Mensaje eliminado exitosamente',
+      eliminado: eliminado
+    });
+  } catch (error) {
+    res.status(500).json({ ok: false, mensaje: 'No se pudo eliminar el mensaje.' });
+  }
 });
 
 module.exports = router;
