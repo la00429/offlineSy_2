@@ -171,6 +171,7 @@ function getMensajes() {
   fetch('/api')
     .then(res => res.json())
     .then(posts => {
+      timeline.empty();
       posts.forEach(post => crearMensajeHTML(post.mensaje, post.user));
     })
     .catch(err => {

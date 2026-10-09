@@ -50,7 +50,9 @@ Si una petición falla, el documento pendiente no se elimina y Background Sync p
 
 ## 5. Actualización del caché dinámico
 
-Pendiente de implementación.
+**Implementación:** después de enviar los pendientes, el Service Worker consulta nuevamente `GET /api` y reemplaza la entrada `/api` del caché dinámico. `getMensajes` limpia el timeline antes de renderizar la respuesta, evitando duplicados si la vista se actualiza.
+
+**Validación:** sincronizar un mensaje offline, recargar la página y consultar Application > Cache Storage > `dynamic-v1`. La respuesta de `/api` debe contener cada mensaje una sola vez y coincidir con MongoDB.
 
 ## 6. Notificaciones Toast
 

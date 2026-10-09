@@ -82,3 +82,17 @@ function manejoApiMensajes( cacheName, req ) {
 
 }
 
+function actualizarCacheMensajes(dynamicCache) {
+    const request = new Request('/api', { method: 'GET' });
+
+    return fetch(request).then(res => {
+        if (!res.ok) {
+            return res;
+        }
+
+        return caches.open(dynamicCache).then(cache => {
+            return cache.put(request, res.clone()).then(() => res);
+        });
+    });
+}
+

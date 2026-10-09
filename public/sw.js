@@ -124,7 +124,9 @@ self.addEventListener('sync', e => {
     if ( e.tag === 'nuevo-post' ) {
 
         // postear a BD cuando hay conexión
-        const respuesta = postearMensajes();
+        const respuesta = postearMensajes()
+            .then(mensajes => actualizarCacheMensajes(DYNAMIC_CACHE)
+                .then(() => ({ mensajes })));
         
         e.waitUntil( respuesta );
     }
