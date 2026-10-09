@@ -62,4 +62,19 @@ Si una petición falla, el documento pendiente no se elimina y Background Sync p
 
 ## 7. GET desde la base de datos y actualización local
 
-Pendiente de implementación.
+**Implementación:** `GET /api` consulta MongoDB mediante `Mensaje.find()`. Cuando el Service Worker recibe una respuesta correcta, guarda todos los documentos en el almacén local `mensajes` y actualiza el caché dinámico. Si no existe respuesta de red ni caché, devuelve la copia de `mensajes`.
+
+**Validación:** crear varios mensajes, consultar `GET /api` y revisar IndexedDB > `mensajes`. Desconectar la red, recargar la aplicación y confirmar que la lista se obtiene de la copia local sin duplicados.
+
+## Resultado y comandos de validación
+
+Los literales quedaron implementados en commits independientes. Para validar el proyecto completo:
+
+```bash
+npm install
+node --version
+npm --version
+npm start
+```
+
+Con MongoDB activo, probar `GET /api`, `POST /api` y `DELETE /api/:id` con Postman. Para los escenarios offline, usar DevTools > Application > Service Workers, IndexedDB y Cache Storage, además de DevTools > Network > Offline.

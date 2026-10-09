@@ -67,14 +67,25 @@ function manejoApiMensajes( cacheName, req ) {
         return fetch( req ).then( res => {
     
             if ( res.ok ) {
-                actualizaCacheDinamico( cacheName, req, res.clone() );
-                return res.clone();
+                const respuesta = res.clone();
+                return res.clone().json()
+                    .then(mensajes => guardarMensajesLocales(mensajes))
+                    .then(() => actualizaCacheDinamico(cacheName, req, respuesta));
             } else {
                 return caches.match( req );
             }
       
         }).catch( err => {
-            return caches.match( req );
+            return caches.match(req).then(respuesta => {
+                if (respuesta) {
+                    return respuesta;
+                }
+
+                return listarMensajesLocales().then(docs => new Response(
+                    JSON.stringify(docs.rows.map(row => row.doc)),
+                    { headers: { 'Content-Type': 'application/json' } }
+                ));
+            });
         });
 
     }

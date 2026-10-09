@@ -34,6 +34,9 @@ function eliminarMensajeOffline(documento) {
 function guardarMensajesLocales(mensajes) {
     return dbMensajes.allDocs({ include_docs: true }).then(docs => {
         const documentosActuales = docs.rows.map(row => row.doc);
+        const documentosPorId = new Map(
+            documentosActuales.map(documento => [String(documento._id), documento])
+        );
         const idsNuevos = new Set(mensajes.map(mensaje => String(mensaje._id)));
         const eliminaciones = documentosActuales
             .filter(documento => !idsNuevos.has(String(documento._id)))
@@ -44,7 +47,15 @@ function guardarMensajesLocales(mensajes) {
             }));
 
         return dbMensajes.bulkDocs([
-            ...mensajes.map(mensaje => ({ ...mensaje, _id: String(mensaje._id) })),
+            ...mensajes.map(mensaje => {
+                const id = String(mensaje._id);
+                const documentoActual = documentosPorId.get(id);
+                return {
+                    ...mensaje,
+                    _id: id,
+                    ...(documentoActual ? { _rev: documentoActual._rev } : {})
+                };
+            }),
             ...eliminaciones
         ]);
     });
