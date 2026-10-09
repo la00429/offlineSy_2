@@ -90,6 +90,50 @@ PouchDB utiliza IndexedDB en el navegador. `guardarMensajeOffline` crea el docum
 - `server/routes.js`: los errores de base de datos responden HTTP 503 con `tipoError: "base-de-datos"`.
 - `public/js/sw-utils.js`, función `manejoApiMensajes`: intenta el `fetch` real. Ante una falla de red o respuesta 5xx llama a `guardarMensajeOffline`.
 
+```js
+router.post('/', async function(req, res) {
+	const { user, mensaje } = req.body;
+
+	if (!user || !mensaje || user.trim() === '' || mensaje.trim() === '') {
+		return res.status(400).json({
+			ok: false,
+			mensaje: 'El usuario y el mensaje son obligatorios.'
+		});
+	}
+
+	try {
+		const nuevoMensaje = await Mensaje.create({
+			user: user.trim(),
+			mensaje: mensaje.trim()
+		});
+
+		res.status(200).json({ ok: true, mensaje: nuevoMensaje });
+	} catch (error) {
+		res.status(503).json({
+			ok: false,
+			tipoError: 'base-de-datos',
+			mensaje: 'No se pudo guardar el mensaje en la base de datos.'
+		});
+	}
+});
+```
+
+```js
+function manejoApiMensajes(cacheName, req) {
+	if (req.clone().method === 'POST') {
+		return req.clone().text().then(body => {
+			const bodyObj = JSON.parse(body);
+
+			return fetch(req.clone()).then(res => {
+				if (res.ok) return res;
+				if (res.status >= 500) return guardarMensajeOffline(bodyObj);
+				return res;
+			}).catch(() => guardarMensajeOffline(bodyObj));
+		});
+	}
+}
+```
+
 **Cómo evidenciarlo:**
 
 1. Con red y MongoDB activos, enviar un POST y capturar HTTP 200.
@@ -109,6 +153,56 @@ PouchDB utiliza IndexedDB en el navegador. `guardarMensajeOffline` crea el docum
 - `public/sw.js`, evento `sync`: ejecuta `postearMensajes`.
 - `public/js/sw-db.js`: elimina el pendiente únicamente después de recibir una respuesta exitosa con `ok: true`.
 
+```js
+function postearMensajes() {
+	return listarMensajesOffline().then(docs => {
+		const posteos = docs.rows.map(row => {
+			const documento = row.doc;
+			const payload = {
+				user: documento.user,
+				mensaje: documento.mensaje
+			};
+
+			return fetch('api', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify(payload)
+			}).then(respuesta => respuesta.json().then(respuestaJson => ({
+				respuesta,
+				respuestaJson
+			}))).then(({ respuesta, respuestaJson }) => {
+				if (!respuesta.ok || !respuestaJson.ok) {
+					throw new Error(respuestaJson.mensaje);
+				}
+
+				return dbMensajes.put({
+					...respuestaJson.mensaje,
+					_id: String(respuestaJson.mensaje._id)
+				}).then(() => eliminarMensajeOffline(documento));
+			});
+		});
+
+		return Promise.all(posteos);
+	});
+}
+```
+
+```js
+self.addEventListener('sync', e => {
+	if (e.tag === 'nuevo-post') {
+		e.waitUntil(
+			postearMensajes()
+				.then(mensajes => actualizarCacheMensajes(DYNAMIC_CACHE)
+					.then(() => self.clients.matchAll({ type: 'window' }))
+					.then(clientes => clientes.forEach(cliente => cliente.postMessage({
+						type: 'mensajes-sincronizados',
+						count: mensajes.length
+					}))))
+		);
+	}
+});
+```
+
 **Cómo evidenciarlo:**
 
 1. Mantener varios mensajes en `mensajes-offline`.
@@ -127,6 +221,29 @@ PouchDB utiliza IndexedDB en el navegador. `guardarMensajeOffline` crea el docum
 - `public/sw.js`: ejecuta la actualización del caché después de `postearMensajes`.
 - `public/js/app.js`, función `getMensajes`: limpia `timeline` antes de pintar la respuesta.
 
+```js
+function actualizarCacheMensajes(dynamicCache) {
+	const request = new Request('/api', { method: 'GET' });
+
+	return fetch(request).then(res => {
+		if (!res.ok) return res;
+
+		return caches.open(dynamicCache).then(cache =>
+			cache.put(request, res.clone()).then(() => res)
+		);
+	});
+}
+
+function getMensajes() {
+	fetch('/api')
+		.then(res => res.json())
+		.then(posts => {
+			timeline.empty();
+			posts.forEach(post => crearMensajeHTML(post.mensaje, post.user));
+		});
+}
+```
+
 **Cómo evidenciarlo:** sincronizar mensajes, abrir Application > Cache Storage > `dynamic-v1`, inspeccionar `/api` y recargar la página. La lista debe mostrar cada mensaje una sola vez y coincidir con MongoDB.
 
 ## 6. Notificaciones Toast
@@ -143,6 +260,29 @@ PouchDB utiliza IndexedDB en el navegador. `guardarMensajeOffline` crea el docum
 
 `public/sw.js` informa al cliente mediante `postMessage` cuando termina la sincronización.
 
+```js
+function mostrarToast(mensaje, tipo) {
+	if (typeof $.mdtoast === 'function') {
+		$.mdtoast(mensaje, {
+			interaction: true,
+			interactionTimeout: 2500,
+			actionText: 'OK',
+			type: tipo
+		});
+	}
+}
+
+navigator.serviceWorker.addEventListener('message', event => {
+	if (event.data && event.data.type === 'mensajes-sincronizados') {
+		getMensajes();
+		mostrarToast(
+			`${event.data.count} mensaje(s) sincronizado(s).`,
+			'success'
+		);
+	}
+});
+```
+
 **Cómo evidenciarlo:** repetir los escenarios online, offline, reconexión y error de servidor, y capturar cada Toast visible en la interfaz.
 
 ## 7. GET desde MongoDB y actualización local
@@ -154,6 +294,42 @@ PouchDB utiliza IndexedDB en el navegador. `guardarMensajeOffline` crea el docum
 - `server/routes.js`, método `router.get('/')`: ejecuta `Mensaje.find().sort({ createdAt: 1 }).lean()` y retorna todos los registros de MongoDB.
 - `public/js/sw-utils.js`: al recibir un GET correcto llama a `guardarMensajesLocales`, actualiza el caché dinámico y usa el almacén `mensajes` como respaldo si no existe red ni caché.
 - `public/js/sw-db.js`: conserva `_rev` al actualizar documentos para evitar conflictos de PouchDB.
+
+```js
+router.get('/', async function (req, res) {
+	try {
+		const mensajes = await Mensaje.find()
+			.sort({ createdAt: 1 })
+			.lean();
+		res.json(mensajes);
+	} catch (error) {
+		res.status(500).json({
+			ok: false,
+			mensaje: 'No se pudieron obtener los mensajes.'
+		});
+	}
+});
+```
+
+```js
+return fetch(req).then(res => {
+	if (res.ok) {
+		const respuesta = res.clone();
+		return res.clone().json()
+			.then(mensajes => guardarMensajesLocales(mensajes))
+			.then(() => actualizaCacheDinamico(cacheName, req, respuesta));
+	}
+
+	return caches.match(req);
+}).catch(() => caches.match(req).then(respuesta => {
+	if (respuesta) return respuesta;
+
+	return listarMensajesLocales().then(docs => new Response(
+		JSON.stringify(docs.rows.map(row => row.doc)),
+		{ headers: { 'Content-Type': 'application/json' } }
+	));
+}));
+```
 
 **Cómo evidenciarlo:** ejecutar `GET /api` desde Postman, comparar la respuesta con MongoDB y revisar IndexedDB > `mensajes`. Desconectar la red, recargar la aplicación y comprobar que la lista se muestra desde la copia local.
 
