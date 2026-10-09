@@ -5,7 +5,7 @@
 La aplicación implementa un flujo completo de sincronización offline:
 
 1. El servidor Express persiste los mensajes en la colección MongoDB `mensajes` mediante Mongoose.
-2. El navegador conserva los mensajes pendientes en el ObjectStore nativo de IndexedDB `mensajes-offline`.
+2. El navegador conserva los mensajes pendientes en el ObjectStore PouchDB `mensajes-offline`, usando IndexedDB.
 3. El Service Worker intercepta los POST, activa Background Sync y reintenta el envío al recuperar la conexión.
 4. Los mensajes confirmados se guardan en el almacén local `mensajes` y se actualiza el caché dinámico de `GET /api`.
 5. La interfaz informa cada estado mediante Toasts.
@@ -78,23 +78,16 @@ Cada registro de la colección `mensajes` es un documento independiente con `_id
 
 **Commit:** `a82f0ee`.
 
-**Archivo y código:** `public/js/sw-db.js` crea el ObjectStore nativo de IndexedDB para pendientes y el almacén PouchDB para mensajes confirmados:
+**Archivo y código:** `public/js/sw-db.js` crea los dos almacenes locales:
 
 ```js
+const dbOffline = new PouchDB('mensajes-offline');
 const dbMensajes = new PouchDB('mensajes');
-const offlineDatabaseName = 'offline-synchronization';
-const offlineStoreName = 'mensajes-offline';
-
-const request = indexedDB.open(offlineDatabaseName, 1);
-request.onupgradeneeded = event => {
-	const database = event.target.result;
-	database.createObjectStore(offlineStoreName, { keyPath: '_id' });
-};
 ```
 
-`mensajes-offline` es el ObjectStore nativo de pendientes solicitado. `guardarMensajeOffline` crea cada documento con `_id`, `user` y `mensaje`. El almacén PouchDB `mensajes` contiene la copia confirmada que coincide con la colección principal.
+PouchDB utiliza IndexedDB en el navegador. `mensajes-offline` es el ObjectStore de pendientes solicitado; `guardarMensajeOffline` crea cada documento con `_id`, `user` y `mensaje`. El almacén `mensajes` contiene la copia confirmada que coincide con la colección principal.
 
-**Cómo evidenciarlo:** abrir DevTools > Application > IndexedDB, expandir la base `offline-synchronization` y mostrar el ObjectStore `mensajes-offline`. Antes de sincronizar, un mensaje pendiente debe estar únicamente allí.
+**Cómo evidenciarlo:** abrir DevTools > Application > IndexedDB y mostrar las bases `mensajes-offline` y `mensajes`. Antes de sincronizar, un mensaje pendiente debe estar únicamente en `mensajes-offline`.
 
 ## 3. POST, errores y almacenamiento pendiente
 

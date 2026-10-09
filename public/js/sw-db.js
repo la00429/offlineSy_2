@@ -1,38 +1,6 @@
-// PouchDB conserva la copia confirmada; los pendientes usan IndexedDB nativo.
+// PouchDB usa IndexedDB como almacenamiento local en el navegador.
+const dbOffline = new PouchDB('mensajes-offline');
 const dbMensajes = new PouchDB('mensajes');
-const offlineDatabaseName = 'offline-synchronization';
-const offlineStoreName = 'mensajes-offline';
-
-function abrirBaseOffline() {
-    return new Promise((resolve, reject) => {
-        const request = indexedDB.open(offlineDatabaseName, 1);
-
-        request.onupgradeneeded = event => {
-            const database = event.target.result;
-            if (!database.objectStoreNames.contains(offlineStoreName)) {
-                database.createObjectStore(offlineStoreName, { keyPath: '_id' });
-            }
-        };
-
-        request.onsuccess = () => resolve(request.result);
-        request.onerror = () => reject(request.error);
-    });
-}
-
-function guardarDocumentoOffline(documento) {
-    return abrirBaseOffline().then(database => new Promise((resolve, reject) => {
-        const transaction = database.transaction(offlineStoreName, 'readwrite');
-        transaction.objectStore(offlineStoreName).put(documento);
-        transaction.oncomplete = () => {
-            database.close();
-            resolve();
-        };
-        transaction.onerror = () => {
-            database.close();
-            reject(transaction.error);
-        };
-    }));
-}
 
 function guardarMensajeOffline(mensaje) {
     const documento = {
@@ -41,7 +9,7 @@ function guardarMensajeOffline(mensaje) {
         mensaje: mensaje.mensaje
     };
 
-    return guardarDocumentoOffline(documento).then(() => {
+    return dbOffline.put(documento).then(() => {
         if (self.registration.sync) {
             return self.registration.sync.register('nuevo-post');
         }
@@ -59,34 +27,11 @@ function guardarMensajeOffline(mensaje) {
 }
 
 function listarMensajesOffline() {
-    return abrirBaseOffline().then(database => new Promise((resolve, reject) => {
-        const request = database.transaction(offlineStoreName, 'readonly')
-            .objectStore(offlineStoreName)
-            .getAll();
-        request.onsuccess = () => {
-            database.close();
-            resolve({ rows: request.result.map(doc => ({ doc })) });
-        };
-        request.onerror = () => {
-            database.close();
-            reject(request.error);
-        };
-    }));
+    return dbOffline.allDocs({ include_docs: true });
 }
 
 function eliminarMensajeOffline(documento) {
-    return abrirBaseOffline().then(database => new Promise((resolve, reject) => {
-        const transaction = database.transaction(offlineStoreName, 'readwrite');
-        transaction.objectStore(offlineStoreName).delete(documento._id);
-        transaction.oncomplete = () => {
-            database.close();
-            resolve();
-        };
-        transaction.onerror = () => {
-            database.close();
-            reject(transaction.error);
-        };
-    }));
+    return dbOffline.remove(documento);
 }
 
 function guardarMensajesLocales(mensajes) {
