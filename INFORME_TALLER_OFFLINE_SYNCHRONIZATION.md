@@ -46,15 +46,22 @@ Para probar la API se puede utilizar Postman. Para probar el modo offline se nec
 
 **Commit:** `9e1b12f`.
 
-**Archivo y código:** `server/routes.js` define el esquema Mongoose `Mensaje` y lo guarda explícitamente en la colección `mensajes`:
+**Archivo y código:** `server/mensajes.js` define el esquema Mongoose `Mensaje` y lo guarda explícitamente en la colección `mensajes`. `server/routes.js` importa este modelo para las operaciones CRUD:
 
 ```js
+const mongoose = require('mongoose');
+
 const mensajeSchema = new mongoose.Schema({
 	user: { type: String, required: true, trim: true },
 	mensaje: { type: String, required: true, trim: true }
 });
 
 const Mensaje = mongoose.model('Mensaje', mensajeSchema, 'mensajes');
+```
+
+```js
+// server/routes.js
+const Mensaje = require('./mensajes');
 ```
 
 Cada registro de la colección `mensajes` es un documento independiente con `_id`, `user` y `mensaje`; MongoDB genera `_id` automáticamente. También se guardan los campos de fecha configurados por `timestamps`. No se crea un documento único que contenga todos los mensajes.

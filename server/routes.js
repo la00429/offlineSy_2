@@ -2,21 +2,7 @@
 var express = require('express');
 var router = express.Router();
 const mongoose = require('mongoose');
-
-const mensajeSchema = new mongoose.Schema({
-  user: {
-    type: String,
-    required: true,
-    trim: true
-  },
-  mensaje: {
-    type: String,
-    required: true,
-    trim: true
-  }
-}, { timestamps: true });
-
-const Mensaje = mongoose.model('Mensaje', mensajeSchema, 'mensajes');
+const Mensaje = require('./mensajes');
 
 // Get mensajes
 router.get('/', async function (req, res) {
